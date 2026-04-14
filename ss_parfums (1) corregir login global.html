@@ -416,8 +416,12 @@ hr{border:none;border-top:0.5px solid var(--border);margin:1rem 0;}
 const DEF={users:[{id:1,user:'admin',pass:'ss2024',role:'admin',nombre:'Administrador'}],inversiones:[],perfumes:[],ventas:[],socios:{s1:'',s2:'',pct1:50},notifs:[],tempIng:[]};
 let D=JSON.parse(localStorage.getItem('ss_v4')||JSON.stringify(DEF));
 let CU=null,filtro='todos',filtroInv='todos',rpPeriod='mes',chartV=null,chartG=null,modalPassId=null;
-
 function save(){localStorage.setItem('ss_v4',JSON.stringify(D));}
+if(!D.users) D.users=[];
+if(!D.users.find(u=>u.user==='admin')){
+  D.users.push({id:1,user:'admin',pass:'ss2024',role:'admin',nombre:'Administrador'});
+  save();
+}
 function fmt(n){return '$'+Math.round(n).toLocaleString('es-CO');}
 function today(){return new Date().toISOString().split('T')[0];}
 function cerrarModal(id){document.getElementById(id).style.display='none';}
