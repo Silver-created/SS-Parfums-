@@ -315,6 +315,78 @@ hr{border:none;border-top:0.5px solid var(--border);margin:1rem 0;}
         <div id="ventas-lista"></div>
       </div>
     </div>
+    <!-- CLIENTES -->
+<div id="clientes" class="section">
+  <div class="card">
+    <div class="card-title">Registrar nuevo cliente</div>
+    <div class="grid2">
+      <div><label>Tipo</label>
+        <select id="cli-tipo" onchange="toggleClienteFields()">
+          <option value="normal">Cliente Normal</option>
+          <option value="mayorista">Mayorista</option>
+        </select>
+      </div>
+      <div><label>Nombre completo</label><input type="text" id="cli-nombre" placeholder="Nombre del cliente"></div>
+    </div>
+    <div class="grid2">
+      <div><label>Teléfono / Celular</label><input type="text" id="cli-telefono" placeholder="Ej: 3001234567"></div>
+      <div><label>Dirección / Ubicación</label><input type="text" id="cli-direccion" placeholder="Dirección"></div>
+    </div>
+    <div id="mayorista-fields" style="display:none">
+      <div class="grid2">
+        <div><label>Email (opcional)</label><input type="email" id="cli-email" placeholder="correo@ejemplo.com"></div>
+        <div><label>Notas adicionales</label><input type="text" id="cli-notas" placeholder="Observaciones"></div>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="agregarCliente()">Registrar cliente</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Lista de clientes</div>
+    <div class="filter-row">
+      <button class="filter-btn on" onclick="setFiltroCliente('todos',this)">Todos</button>
+      <button class="filter-btn" onclick="setFiltroCliente('normal',this)">Clientes normales</button>
+      <button class="filter-btn" onclick="setFiltroCliente('mayorista',this)">Mayoristas</button>
+    </div>
+    <div id="clientes-lista"></div>
+  </div>
+</div>
+
+<!-- Modal de detalle de cliente -->
+<div id="modal-cliente" class="modal-bg">
+  <div class="modal-box" style="max-width:700px">
+    <div class="modal-title" id="modal-cliente-nombre"></div>
+    <div class="modal-sub" id="modal-cliente-info"></div>
+    <div id="modal-cliente-precios" style="margin-top:15px"></div>
+    <div id="modal-cliente-stock" style="margin-top:15px"></div>
+    <div id="modal-cliente-historial" style="margin-top:15px"></div>
+    <div style="margin-top:1.25rem;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-primary" onclick="abrirVentaMayorista()">Registrar venta mayorista</button>
+      <button class="btn-secondary" onclick="cerrarModal('modal-cliente')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para registrar venta mayorista -->
+<div id="modal-venta-mayorista" class="modal-bg">
+  <div class="modal-box">
+    <div class="modal-title">Registrar venta a mayorista</div>
+    <div class="modal-sub" id="modal-vm-cliente"></div>
+    <label>Perfume</label>
+    <select id="vm-perfume" onchange="actualizarPrecioMayorista()"></select>
+    <label>Cantidad</label>
+    <input type="number" id="vm-cantidad" value="1" min="1">
+    <label>Precio unitario ($)</label>
+    <input type="number" id="vm-precio" placeholder="Precio de venta">
+    <label>Fecha</label>
+    <input type="date" id="vm-fecha">
+    <div id="vm-err" class="modal-err"></div>
+    <div style="display:flex;gap:10px;margin-top:1.25rem">
+      <button class="btn-primary" onclick="registrarVentaMayorista()">Registrar venta</button>
+      <button class="btn-secondary" onclick="cerrarModal('modal-venta-mayorista')">Cancelar</button>
+    </div>
+  </div>
+</div>
 
     <!-- SOCIOS -->
     <div id="socios" class="section">
