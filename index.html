@@ -1038,13 +1038,21 @@ function toggleClienteFields(){
 }
 
 function agregarCliente(){
+  console.log("=== INICIO agregarCliente ===");
+  
   const tipo = document.getElementById('cli-tipo').value;
   const nombre = document.getElementById('cli-nombre').value.trim();
   const telefono = document.getElementById('cli-telefono').value.trim();
   const direccion = document.getElementById('cli-direccion').value.trim();
+  const email = document.getElementById('cli-email').value.trim();
+  const notas = document.getElementById('cli-notas').value.trim();
+  
+  console.log("Tipo:", tipo);
+  console.log("Nombre:", nombre);
+  console.log("Teléfono:", telefono);
   
   if(!nombre || !telefono){
-    alert('Completa al menos nombre y teléfono');
+    alert('❌ Completa al menos nombre y teléfono');
     return;
   }
   
@@ -1054,35 +1062,59 @@ function agregarCliente(){
     nombre: nombre,
     telefono: telefono,
     direccion: direccion,
-    email: document.getElementById('cli-email').value.trim(),
-    notas: document.getElementById('cli-notas').value.trim(),
+    email: email,
+    notas: notas,
     preciosEspeciales: {},
     inventarioEntregado: {},
     historialVentas: [],
     fechaRegistro: today()
   };
   
-  if(!D.clientes) D.clientes = [];
+  console.log("Cliente a guardar:", nuevoCliente);
+  
+  // Asegurar que D.clientes existe
+  if(!D.clientes){
+    D.clientes = [];
+    console.log("D.clientes no existía, se creó");
+  }
+  
   D.clientes.push(nuevoCliente);
   save();
   
+  console.log("Clientes después de guardar:", D.clientes);
+  
+  // Limpiar formulario
   document.getElementById('cli-nombre').value = '';
   document.getElementById('cli-telefono').value = '';
   document.getElementById('cli-direccion').value = '';
   document.getElementById('cli-email').value = '';
   document.getElementById('cli-notas').value = '';
   
+  // Forzar actualización de la lista
   renderClientes();
+  
   addNotif(`Cliente "${nombre}" registrado como ${tipo === 'mayorista' ? 'Mayorista' : 'Cliente normal'}`, 'inversion');
-  alert('Cliente registrado correctamente');
+  alert('✅ Cliente registrado correctamente');
+  
+  console.log("=== FIN agregarCliente ===");
 }
 
 function renderClientes(){
+  console.log("=== renderClientes ===");
   const el = document.getElementById('clientes-lista');
-  if(!D.clientes || !D.clientes.length){
+  
+  if(!el){
+    console.log("ERROR: No se encontró el elemento clientes-lista");
+    return;
+  }
+  
+  if(!D.clientes || D.clientes.length === 0){
+    console.log("No hay clientes");
     el.innerHTML = '<div class="empty">Sin clientes registrados</div>';
     return;
   }
+  
+  console.log("Clientes a mostrar:", D.clientes.length);
   
   let lista = D.clientes;
   if(filtroCliente !== 'todos'){
@@ -1102,6 +1134,8 @@ function renderClientes(){
       </div>
     </div>
   `).join('');
+  
+  console.log("renderClientes completado");
 }
 
 function setFiltroCliente(f, el){
