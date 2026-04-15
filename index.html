@@ -553,23 +553,26 @@ function renderPerfumes(){
   if(filtro==='disponible'||filtro==='vendido') lista=lista.filter(p=>p.estado===filtro);
   else if(filtro!=='todos') lista=lista.filter(p=>p.genero===filtro);
   if(!lista.length){el.innerHTML='<div class="empty">Sin perfumes</div>';return;}
-  el.innerHTML='<div class="tbl"><table><thead><tr><th>Nombre</th><th>Género</th><th>Costo fab.</th><th>Precio</th><th>Margen</th><th>Estado</th><th>Notas</th><th>Insumos</th></tr></thead><tbody>'+
+  el.innerHTML='<div class="tbl"><table><thead><tr><th>Nombre</th><th>Género</th><th>Costo fab.</th><th>Precio</th><th>Margen</th><th>Estado</th><th>Notas</th><th>Insumos</th><th>Acciones</th></tr></thead><tbody>'+
     lista.map(p=>{
       const mg=p.precio>0?Math.round((p.precio-p.costo)/p.precio*100):0;
       const bc=p.genero==='hombre'?'bm':p.genero==='dama'?'bd':'bu';
       const be=p.estado==='disponible'?'bgrn':'bgry';
-      return `<tr><td style="font-weight:500">${p.nombre}</td><td><span class="badge ${bc}">${p.genero}</span></td><td>${fmt(p.costo)}</td><td style="color:var(--gold)">${fmt(p.precio)}</td><td style="color:var(--success)">${mg}%</td><td><span class="badge ${be}">${p.estado}</span></td><td style="font-size:11px;color:var(--muted)">${p.nota||'—'}</td><td><button class="btn-rep" onclick="verInsumos(${p.id})">Ver</button></td></tr>`;
+      return `<tr>
+        <td style="font-weight:500">${p.nombre}</td>
+        <td><span class="badge ${bc}">${p.genero}</span></td>
+        <td>${fmt(p.costo)}</td>
+        <td style="color:var(--gold)">${fmt(p.precio)}</td>
+        <td style="color:var(--success)">${mg}%</td>
+        <td><span class="badge ${be}">${p.estado}</span></td>
+        <td style="font-size:11px;color:var(--muted)">${p.nota||'—'}</td>
+        <td><button class="btn-rep" onclick="verInsumos(${p.id})">Ver</button></td>
+        <td style="display:flex;gap:5px;">
+          <button class="btn-rep" onclick="editarPerfume(${p.id})" style="background:rgba(55,138,221,0.14);color:#85B7EB;">✎ Editar</button>
+          <button class="btn-danger" onclick="eliminarPerfume(${p.id})" style="background:none;border:none;color:var(--danger);cursor:pointer;">✕ Eliminar</button>
+        </td>
+      </tr>`;
     }).join('')+'</tbody></table></div>';
-}
-function verInsumos(id){
-  const p=D.perfumes.find(x=>x.id===id);
-  document.getElementById('modal-ing-title').textContent=p.nombre;
-  if(!p.ingredientes||!p.ingredientes.length){document.getElementById('modal-ing-body').innerHTML='<div class="empty">Sin insumos registrados</div>';}
-  else{
-    const tot=p.ingredientes.reduce((s,x)=>s+x.c,0);
-    document.getElementById('modal-ing-body').innerHTML=p.ingredientes.map(x=>`<div class="ing-item"><span>${x.n}${x.q?' · '+x.q:''}</span><span style="color:var(--gold)">${fmt(x.c)}</span></div>`).join('')+`<div style="text-align:right;font-size:12px;margin-top:8px;color:var(--gold)">Total: ${fmt(tot)}</div>`;
-  }
-  document.getElementById('modal-ing').style.display='flex';
 }
 
 /* INVENTARIO */
@@ -805,7 +808,58 @@ function importarDatos(e){
   };
   r.readAsText(file);
 }
-
+function editarPerfume(id){
+  const p=D.perfumes.find(x=>x.id===id);
+  if(!p){alert('Perfume no encontrado');return;}
+  
+  const nuevoNombre=prompt('Nuevo nombre:', p.nombre);
+  if(nuevoNombre===null) return;
+  const nuevoPrecio=parseFloat(prompt('Nuevo precio de venta ($):', p.precio));
+  if(isNaN(nuevoPrecio)) return;
+  const nuevaNota=prompt('Notas / descripción:', p.nota||'');
+  
+  p.nombre=nuevoNombre.trim();
+  p.precio=nuevoPrecio;
+  if(nuevaNota!==null) p.nota=nuevaNota.trim();
+  
+  save();
+  renderPerfumes();
+  updateResumen();
+  addNotif(`Perfume "${p.nombre}" editado (precio: ${fmt(p.precio)})`,'inversion');
+  alert('Perfume actualizado correctamente');
+}
+  function eliminarPerfume(id){
+  const p=D.perfumes.find(x=>x.id===id);
+  if(!p) return;
+  if(!confirm(`¿Eliminar PERMANENTEMENTE "${p.nombre}"?\n\nEsta acción no se puede deshacer.`)) return;
+  
+  // Eliminar también las ventas asociadas a este perfume (opcional)
+  const ventasAsociadas=D.ventas.filter(v=>v.pid===id);
+  if(ventasAsociadas.length>0){
+    if(!confirm(`Este perfume tiene ${ventasAsociadas.length} venta(s) registrada(s). ¿Eliminar también las ventas?`)){
+      return;
+    }
+    D.ventas=D.ventas.filter(v=>v.pid!==id);
+  }
+  
+  D.perfumes=D.perfumes.filter(x=>x.id!==id);
+  save();
+  renderPerfumes();
+  updateResumen();
+  addNotif(`Perfume "${p.nombre}" eliminado del sistema`,'inversion');
+  alert('Perfume eliminado');
+}
+  function editarStockPerfume(id, nuevaCantidad){
+  const p=D.perfumes.find(x=>x.id===id);
+  if(!p) return;
+  const diff=nuevaCantidad-p.stock;
+  p.stock=nuevaCantidad;
+  save();
+  renderInventario();
+  updateResumen();
+  if(diff>0) addNotif(`Stock de "${p.nombre}" aumentado en ${diff} unidades`,'inversion');
+  else if(diff<0) addNotif(`Stock de "${p.nombre}" reducido en ${Math.abs(diff)} unidades`,'stock');
+}
 /* INIT */
 renderInversiones();renderPerfumes();renderVentas();
 </script>
