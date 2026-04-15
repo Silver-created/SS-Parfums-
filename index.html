@@ -166,6 +166,7 @@ hr{border:none;border-top:0.5px solid var(--border);margin:1rem 0;}
     <button class="tab" onclick="showTab('perfumes',this)">Perfumes</button>
     <button class="tab" onclick="showTab('inventario',this)">Inventario</button>
     <button class="tab" onclick="showTab('ventas',this)">Ventas</button>
+    <button class="tab" onclick="showTab('clientes',this)">Clientes</button>
     <button class="tab" onclick="showTab('socios',this)">Socios</button>
     <button class="tab" id="tab-notif" onclick="showTab('notif',this)" style="display:none">Alertas</button>
   </div>
@@ -381,6 +382,78 @@ hr{border:none;border-top:0.5px solid var(--border);margin:1rem 0;}
     </div>
 
   </div>
+  <!-- CLIENTES -->
+<div id="clientes" class="section">
+  <div class="card">
+    <div class="card-title">Registrar nuevo cliente</div>
+    <div class="grid2">
+      <div><label>Tipo</label>
+        <select id="cli-tipo" onchange="toggleClienteFields()">
+          <option value="normal">Cliente Normal</option>
+          <option value="mayorista">Mayorista</option>
+        </select>
+      </div>
+      <div><label>Nombre completo</label><input type="text" id="cli-nombre" placeholder="Nombre del cliente"></div>
+    </div>
+    <div class="grid2">
+      <div><label>Teléfono / Celular</label><input type="text" id="cli-telefono" placeholder="Ej: 3001234567"></div>
+      <div><label>Dirección / Ubicación</label><input type="text" id="cli-direccion" placeholder="Dirección"></div>
+    </div>
+    <div id="mayorista-fields" style="display:none">
+      <div class="grid2">
+        <div><label>Email (opcional)</label><input type="email" id="cli-email" placeholder="correo@ejemplo.com"></div>
+        <div><label>Notas adicionales</label><input type="text" id="cli-notas" placeholder="Observaciones"></div>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="agregarCliente()">Registrar cliente</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Lista de clientes</div>
+    <div class="filter-row">
+      <button class="filter-btn on" onclick="setFiltroCliente('todos',this)">Todos</button>
+      <button class="filter-btn" onclick="setFiltroCliente('normal',this)">Clientes normales</button>
+      <button class="filter-btn" onclick="setFiltroCliente('mayorista',this)">Mayoristas</button>
+    </div>
+    <div id="clientes-lista"></div>
+  </div>
+
+  <!-- Modal de detalle de cliente -->
+  <div id="modal-cliente" class="modal-bg">
+    <div class="modal-box" style="max-width:700px">
+      <div class="modal-title" id="modal-cliente-nombre"></div>
+      <div class="modal-sub" id="modal-cliente-info"></div>
+      <div id="modal-cliente-precios" style="margin-top:15px"></div>
+      <div id="modal-cliente-stock" style="margin-top:15px"></div>
+      <div id="modal-cliente-historial" style="margin-top:15px"></div>
+      <div style="margin-top:1.25rem;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn-primary" onclick="abrirVentaMayorista()">Registrar venta mayorista</button>
+        <button class="btn-secondary" onclick="cerrarModal('modal-cliente')">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para registrar venta mayorista -->
+  <div id="modal-venta-mayorista" class="modal-bg">
+    <div class="modal-box">
+      <div class="modal-title">Registrar venta a mayorista</div>
+      <div class="modal-sub" id="modal-vm-cliente"></div>
+      <label>Perfume</label>
+      <select id="vm-perfume" onchange="actualizarPrecioMayorista()"></select>
+      <label>Cantidad</label>
+      <input type="number" id="vm-cantidad" value="1" min="1">
+      <label>Precio unitario ($)</label>
+      <input type="number" id="vm-precio" placeholder="Precio de venta">
+      <label>Fecha</label>
+      <input type="date" id="vm-fecha">
+      <div id="vm-err" class="modal-err"></div>
+      <div style="display:flex;gap:10px;margin-top:1.25rem">
+        <button class="btn-primary" onclick="registrarVentaMayorista()">Registrar venta</button>
+        <button class="btn-secondary" onclick="cerrarModal('modal-venta-mayorista')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
 </div>
 
 <!-- MODAL CAMBIAR CONTRASEÑA -->
@@ -413,7 +486,7 @@ hr{border:none;border-top:0.5px solid var(--border);margin:1rem 0;}
 </div>
 
 <script>
-const DEF={users:[{id:1,user:'admin',pass:'ss2026',role:'admin',nombre:'Administrador'}],inversiones:[],perfumes:[],ventas:[],socios:{s1:'',s2:'',pct1:50},notifs:[],tempIng:[]};
+const DEF={users:[{id:1,user:'admin',pass:'ss2026',role:'admin',nombre:'Administrador'}],inversiones:[],perfumes:[],ventas:[],socios:{s1:'',s2:'',pct1:50},notifs:[],clientes:[],tempIng:[]};
 let D=JSON.parse(localStorage.getItem('ss_v4')||JSON.stringify(DEF));
 let CU=null,filtro='todos',filtroInv='todos',rpPeriod='mes',chartV=null,chartG=null,modalPassId=null;
 function save(){localStorage.setItem('ss_v4',JSON.stringify(D));}
@@ -862,6 +935,406 @@ function editarPerfume(id){
 }
 /* INIT */
 renderInversiones();renderPerfumes();renderVentas();
+  // ============ CLIENTES ============
+let filtroCliente = 'todos';
+let clienteSeleccionado = null;
+
+function toggleClienteFields(){
+  const tipo = document.getElementById('cli-tipo').value;
+  const mayoristaFields = document.getElementById('mayorista-fields');
+  mayoristaFields.style.display = tipo === 'mayorista' ? 'block' : 'none';
+}
+
+function agregarCliente(){
+  const tipo = document.getElementById('cli-tipo').value;
+  const nombre = document.getElementById('cli-nombre').value.trim();
+  const telefono = document.getElementById('cli-telefono').value.trim();
+  const direccion = document.getElementById('cli-direccion').value.trim();
+  
+  if(!nombre || !telefono){
+    alert('Completa al menos nombre y teléfono');
+    return;
+  }
+  
+  const nuevoCliente = {
+    id: Date.now(),
+    tipo: tipo,
+    nombre: nombre,
+    telefono: telefono,
+    direccion: direccion,
+    email: document.getElementById('cli-email').value.trim(),
+    notas: document.getElementById('cli-notas').value.trim(),
+    preciosEspeciales: {},
+    inventarioEntregado: {},
+    historialVentas: [],
+    fechaRegistro: today()
+  };
+  
+  if(!D.clientes) D.clientes = [];
+  D.clientes.push(nuevoCliente);
+  save();
+  
+  document.getElementById('cli-nombre').value = '';
+  document.getElementById('cli-telefono').value = '';
+  document.getElementById('cli-direccion').value = '';
+  document.getElementById('cli-email').value = '';
+  document.getElementById('cli-notas').value = '';
+  
+  renderClientes();
+  addNotif(`Cliente "${nombre}" registrado como ${tipo === 'mayorista' ? 'Mayorista' : 'Cliente normal'}`, 'inversion');
+  alert('Cliente registrado correctamente');
+}
+
+function getEstadisticasCliente(cliente){
+  let ventas = [];
+  
+  if(cliente.tipo === 'mayorista'){
+    ventas = cliente.historialVentas || [];
+  } else {
+    ventas = D.ventas.filter(v => v.cliente === cliente.nombre || v.cliente === cliente.nombre + ' (Mayorista)');
+  }
+  
+  if(!ventas.length){
+    return {
+      totalCompras: 0,
+      totalGastado: 0,
+      productoFavorito: 'Ninguno',
+      ultimaCompra: 'Nunca',
+      promedioGasto: 0
+    };
+  }
+  
+  const totalGastado = ventas.reduce((sum, v) => sum + (v.total || v.precio || 0), 0);
+  const totalCompras = ventas.length;
+  const promedioGasto = totalGastado / totalCompras;
+  
+  const productoCount = {};
+  ventas.forEach(v => {
+    const nombre = v.perfumeNombre || v.nombre;
+    productoCount[nombre] = (productoCount[nombre] || 0) + (v.cantidad || 1);
+  });
+  let productoFavorito = 'Ninguno';
+  let maxCount = 0;
+  for(const [nombre, count] of Object.entries(productoCount)){
+    if(count > maxCount){
+      maxCount = count;
+      productoFavorito = nombre;
+    }
+  }
+  
+  const fechas = ventas.map(v => v.fecha).sort().reverse();
+  const ultimaCompra = fechas[0] || 'Nunca';
+  
+  return { totalCompras, totalGastado, productoFavorito, ultimaCompra, promedioGasto };
+}
+
+function compartirClienteWhatsApp(id){
+  const cliente = D.clientes.find(c => c.id === id);
+  if(!cliente) return;
+  
+  const stats = getEstadisticasCliente(cliente);
+  
+  let mensaje = `*📋 RESUMEN DE COMPRAS - ${cliente.nombre.toUpperCase()}*\n\n`;
+  mensaje += `📞 Teléfono: ${cliente.telefono}\n`;
+  mensaje += `📍 Dirección: ${cliente.direccion || 'No especificada'}\n`;
+  mensaje += `🏷️ Tipo: ${cliente.tipo === 'mayorista' ? 'Mayorista' : 'Cliente normal'}\n`;
+  mensaje += `📅 Registrado: ${cliente.fechaRegistro || 'N/A'}\n\n`;
+  mensaje += `*📊 ESTADÍSTICAS:*\n`;
+  mensaje += `💰 Total gastado: ${fmt(stats.totalGastado)}\n`;
+  mensaje += `🛍️ Número de compras: ${stats.totalCompras}\n`;
+  mensaje += `⭐ Producto favorito: ${stats.productoFavorito}\n`;
+  mensaje += `📆 Última compra: ${stats.ultimaCompra}\n`;
+  mensaje += `💵 Promedio por compra: ${fmt(stats.promedioGasto)}\n\n`;
+  
+  if(cliente.tipo === 'mayorista' && cliente.historialVentas && cliente.historialVentas.length){
+    mensaje += `*📦 HISTORIAL DE COMPRAS (Mayorista):*\n`;
+    cliente.historialVentas.sort((a,b) => b.fecha.localeCompare(a.fecha)).slice(0,10).forEach(v => {
+      mensaje += `📅 ${v.fecha} | ${v.perfumeNombre} | ${v.cantidad} x ${fmt(v.precioUnitario)} = ${fmt(v.total)}\n`;
+    });
+  } else {
+    const ventasCliente = D.ventas.filter(v => v.cliente === cliente.nombre || v.cliente === cliente.nombre + ' (Mayorista)');
+    if(ventasCliente.length){
+      mensaje += `*📦 HISTORIAL DE COMPRAS:*\n`;
+      ventasCliente.sort((a,b) => b.fecha.localeCompare(a.fecha)).slice(0,10).forEach(v => {
+        mensaje += `📅 ${v.fecha} | ${v.nombre} | ${fmt(v.precio)}\n`;
+      });
+    }
+  }
+  
+  mensaje += `\n*${new Date().toLocaleDateString('es-CO')} - S&S Parfums*`;
+  
+  const mensajeCodificado = encodeURIComponent(mensaje);
+  window.open(`https://wa.me/57${cliente.telefono}?text=${mensajeCodificado}`, '_blank');
+}
+
+function renderClientes(){
+  const el = document.getElementById('clientes-lista');
+  if(!D.clientes || !D.clientes.length){
+    el.innerHTML = '<div class="empty">Sin clientes registrados</div>';
+    return;
+  }
+  
+  let lista = D.clientes;
+  if(filtroCliente !== 'todos'){
+    lista = lista.filter(c => c.tipo === filtroCliente);
+  }
+  
+  el.innerHTML = lista.map(c => {
+    const stats = getEstadisticasCliente(c);
+    return `
+    <div class="admin-ucard" style="cursor:pointer" onclick="verDetalleCliente(${c.id})">
+      <div>
+        <div style="font-weight:500;font-size:14px">${c.nombre}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">📞 ${c.telefono} ${c.direccion ? '· 📍 ' + c.direccion : ''}</div>
+        <div style="font-size:11px;color:var(--gold);margin-top:4px">💰 ${fmt(stats.totalGastado)} | 🛍️ ${stats.totalCompras} compras | ⭐ ${stats.productoFavorito}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="rbadge ${c.tipo === 'mayorista' ? 'r-admin' : 'r-socio'}">${c.tipo === 'mayorista' ? 'Mayorista' : 'Cliente'}</span>
+        <button class="btn-rep" onclick="event.stopPropagation();editarCliente(${c.id})">✎ Editar</button>
+        <button class="btn-danger" onclick="event.stopPropagation();eliminarCliente(${c.id})">✕</button>
+      </div>
+    </div>
+  `}).join('');
+}
+
+function setFiltroCliente(f, el){
+  filtroCliente = f;
+  document.querySelectorAll('#clientes .filter-btn').forEach(x => x.classList.remove('on'));
+  if(el) el.classList.add('on');
+  renderClientes();
+}
+
+function verDetalleCliente(id){
+  clienteSeleccionado = D.clientes.find(c => c.id === id);
+  if(!clienteSeleccionado) return;
+  
+  const stats = getEstadisticasCliente(clienteSeleccionado);
+  
+  document.getElementById('modal-cliente-nombre').textContent = clienteSeleccionado.nombre;
+  document.getElementById('modal-cliente-info').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px">
+      <div>
+        📞 ${clienteSeleccionado.telefono}<br>
+        📍 ${clienteSeleccionado.direccion || 'No especificada'}<br>
+        ${clienteSeleccionado.email ? `📧 ${clienteSeleccionado.email}<br>` : ''}
+        <span class="badge ${clienteSeleccionado.tipo === 'mayorista' ? 'bgold' : 'bgrn'}">${clienteSeleccionado.tipo === 'mayorista' ? 'Mayorista' : 'Cliente normal'}</span>
+      </div>
+      <div style="text-align:right">
+        <button class="btn-primary" onclick="compartirClienteWhatsApp(${clienteSeleccionado.id})" style="background:#25D366;border-color:#25D366">📱 Compartir por WhatsApp</button>
+      </div>
+    </div>
+    <div style="margin-top:15px;background:var(--dark3);border-radius:10px;padding:12px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;text-align:center">
+        <div><div style="font-size:11px;color:var(--muted)">Total gastado</div><div style="font-size:18px;color:var(--gold);font-weight:600">${fmt(stats.totalGastado)}</div></div>
+        <div><div style="font-size:11px;color:var(--muted)">N° compras</div><div style="font-size:18px;color:var(--gold);font-weight:600">${stats.totalCompras}</div></div>
+        <div><div style="font-size:11px;color:var(--muted)">Producto favorito</div><div style="font-size:14px;color:var(--success)">${stats.productoFavorito}</div></div>
+        <div><div style="font-size:11px;color:var(--muted)">Última compra</div><div style="font-size:14px;color:var(--success)">${stats.ultimaCompra}</div></div>
+      </div>
+    </div>
+  `;
+  
+  if(clienteSeleccionado.tipo === 'mayorista'){
+    let preciosHtml = '<div style="margin-top:10px"><strong style="color:var(--gold)">💰 Precios especiales</strong><div class="tbl"><table><thead><tr><th>Perfume</th><th>Precio especial</th><th>Precio normal</th><th>Acción</th></tr></thead><tbody>';
+    for(const [pid, precio] of Object.entries(clienteSeleccionado.preciosEspeciales)){
+      const perfume = D.perfumes.find(p => p.id == pid);
+      if(perfume){
+        preciosHtml += `<tr><td style="font-weight:500">${perfume.nombre}</td><td style="color:var(--gold)">${fmt(precio)}</td><td>${fmt(perfume.precio)}</td><td><button class="btn-rep" onclick="eliminarPrecioEspecial(${clienteSeleccionado.id}, ${pid})">Eliminar</button></td></tr>`;
+      }
+    }
+    preciosHtml += '</tbody></table></div>';
+    
+    let stockHtml = '<div style="margin-top:15px"><strong style="color:var(--gold)">📦 Inventario entregado (mayorista)</strong><div class="tbl"><table><thead><tr><th>Perfume</th><th>Cantidad</th><th>Valor stock</th><th>Acción</th></tr></thead><tbody>';
+    for(const [pid, cantidad] of Object.entries(clienteSeleccionado.inventarioEntregado)){
+      const perfume = D.perfumes.find(p => p.id == pid);
+      if(perfume && cantidad > 0){
+        const precio = clienteSeleccionado.preciosEspeciales[pid] || perfume.precio;
+        stockHtml += `<tr><td style="font-weight:500">${perfume.nombre}</td><td>${cantidad}</td><td>${fmt(precio * cantidad)}</td><td><button class="btn-rep" onclick="reponerMayorista(${clienteSeleccionado.id}, ${pid})">Reponer</button></td></tr>`;
+      }
+    }
+    stockHtml += '</tbody></table></div>';
+    
+    let historialHtml = '<div style="margin-top:15px"><strong style="color:var(--gold)">📋 Historial de ventas mayorista</strong><div class="tbl"><table><thead><tr><th>Fecha</th><th>Perfume</th><th>Cantidad</th><th>Precio unit.</th><th>Total</th></tr></thead><tbody>';
+    clienteSeleccionado.historialVentas.sort((a,b) => b.fecha.localeCompare(a.fecha)).forEach(v => {
+      historialHtml += `<tr><td>${v.fecha}</td><td>${v.perfumeNombre}</td><td>${v.cantidad}</td><td>${fmt(v.precioUnitario)}</td><td style="color:var(--gold)">${fmt(v.total)}</td></tr>`;
+    });
+    historialHtml += '</tbody></table></div>';
+    
+    document.getElementById('modal-cliente-precios').innerHTML = preciosHtml;
+    document.getElementById('modal-cliente-stock').innerHTML = stockHtml;
+    document.getElementById('modal-cliente-historial').innerHTML = historialHtml;
+  } else {
+    const ventasCliente = D.ventas.filter(v => v.cliente === clienteSeleccionado.nombre || v.cliente === clienteSeleccionado.nombre + ' (Mayorista)');
+    let historialHtml = '<div style="margin-top:15px"><strong style="color:var(--gold)">📋 Historial de compras</strong><div class="tbl"><table><thead><tr><th>Fecha</th><th>Perfume</th><th>Precio</th><th>Método</th></tr></thead><tbody>';
+    ventasCliente.forEach(v => {
+      historialHtml += `<tr><td>${v.fecha}</td><td>${v.nombre}</td><td>${fmt(v.precio)}</td><td>${v.mp}</td></tr>`;
+    });
+    historialHtml += '</tbody></table></div>';
+    document.getElementById('modal-cliente-historial').innerHTML = historialHtml;
+    document.getElementById('modal-cliente-precios').innerHTML = '';
+    document.getElementById('modal-cliente-stock').innerHTML = '';
+  }
+  
+  document.getElementById('modal-cliente').style.display = 'flex';
+}
+
+function abrirVentaMayorista(){
+  if(!clienteSeleccionado) return;
+  document.getElementById('modal-vm-cliente').textContent = `Cliente: ${clienteSeleccionado.nombre}`;
+  
+  const selectPerfume = document.getElementById('vm-perfume');
+  const perfumesDisponibles = D.perfumes.filter(p => p.estado === 'disponible');
+  selectPerfume.innerHTML = perfumesDisponibles.map(p => `<option value="${p.id}">${p.nombre} (${fmt(p.precio)})</option>`).join('');
+  document.getElementById('vm-fecha').value = today();
+  actualizarPrecioMayorista();
+  
+  document.getElementById('modal-venta-mayorista').style.display = 'flex';
+}
+
+function actualizarPrecioMayorista(){
+  const perfumeId = parseInt(document.getElementById('vm-perfume').value);
+  const perfume = D.perfumes.find(p => p.id === perfumeId);
+  const precioEspecial = clienteSeleccionado.preciosEspeciales[perfumeId];
+  const precio = precioEspecial || (perfume ? perfume.precio : 0);
+  document.getElementById('vm-precio').value = precio;
+}
+
+function registrarVentaMayorista(){
+  const perfumeId = parseInt(document.getElementById('vm-perfume').value);
+  const cantidad = parseInt(document.getElementById('vm-cantidad').value) || 1;
+  const precio = parseFloat(document.getElementById('vm-precio').value) || 0;
+  const fecha = document.getElementById('vm-fecha').value;
+  const err = document.getElementById('vm-err');
+  
+  if(!perfumeId || cantidad < 1 || !precio || !fecha){
+    err.textContent = 'Completa todos los campos';
+    err.style.display = 'block';
+    return;
+  }
+  
+  const perfume = D.perfumes.find(p => p.id === perfumeId);
+  if(!perfume){
+    err.textContent = 'Perfume no encontrado';
+    return;
+  }
+  
+  const stockActual = clienteSeleccionado.inventarioEntregado[perfumeId] || 0;
+  if(stockActual < cantidad){
+    err.textContent = `Stock insuficiente en mayorista. Disponible: ${stockActual}`;
+    err.style.display = 'block';
+    return;
+  }
+  
+  const total = precio * cantidad;
+  const utilidad = (precio - perfume.costo) * cantidad;
+  
+  clienteSeleccionado.inventarioEntregado[perfumeId] = stockActual - cantidad;
+  clienteSeleccionado.historialVentas.push({
+    id: Date.now(),
+    fecha: fecha,
+    perfumeId: perfumeId,
+    perfumeNombre: perfume.nombre,
+    cantidad: cantidad,
+    precioUnitario: precio,
+    total: total,
+    utilidad: utilidad
+  });
+  
+  D.ventas.push({
+    pid: perfumeId,
+    nombre: perfume.nombre,
+    genero: perfume.genero,
+    costo: perfume.costo,
+    precio: precio,
+    utilidad: utilidad,
+    fecha: fecha,
+    cliente: clienteSeleccionado.nombre + ' (Mayorista)',
+    mp: 'mayorista',
+    id: Date.now()
+  });
+  
+  save();
+  cerrarModal('modal-venta-mayorista');
+  verDetalleCliente(clienteSeleccionado.id);
+  renderClientes();
+  updateResumen();
+  addNotif(`Venta mayorista: ${cantidad}x "${perfume.nombre}" a ${clienteSeleccionado.nombre} por ${fmt(total)}`, 'venta');
+  alert(`Venta registrada. Total: ${fmt(total)}`);
+}
+
+function eliminarPrecioEspecial(clienteId, perfumeId){
+  const cliente = D.clientes.find(c => c.id === clienteId);
+  if(cliente){
+    delete cliente.preciosEspeciales[perfumeId];
+    save();
+    verDetalleCliente(clienteId);
+  }
+}
+
+function reponerMayorista(clienteId, perfumeId){
+  const cantidad = parseInt(prompt('¿Cuántas unidades reponer?', '1'));
+  if(!cantidad || cantidad < 1) return;
+  
+  const cliente = D.clientes.find(c => c.id === clienteId);
+  const perfume = D.perfumes.find(p => p.id == perfumeId);
+  
+  if(cliente && perfume){
+    const actual = cliente.inventarioEntregado[perfumeId] || 0;
+    cliente.inventarioEntregado[perfumeId] = actual + cantidad;
+    
+    const perfumeDisponible = D.perfumes.find(p => p.id == perfumeId && p.estado === 'disponible');
+    if(perfumeDisponible){
+      const idx = D.perfumes.findIndex(p => p.id === perfumeDisponible.id);
+      if(idx !== -1) D.perfumes[idx].estado = 'vendido';
+    }
+    
+    save();
+    verDetalleCliente(clienteId);
+    addNotif(`Reposición a mayorista ${cliente.nombre}: ${cantidad}x "${perfume.nombre}"`, 'inversion');
+    alert(`Reposición registrada. Ahora tiene ${cliente.inventarioEntregado[perfumeId]} unidades.`);
+  }
+}
+
+function editarCliente(id){
+  const cliente = D.clientes.find(c => c.id === id);
+  if(!cliente) return;
+  
+  const nuevoNombre = prompt('Nuevo nombre:', cliente.nombre);
+  if(nuevoNombre === null) return;
+  const nuevoTelefono = prompt('Nuevo teléfono:', cliente.telefono);
+  if(nuevoTelefono === null) return;
+  const nuevaDireccion = prompt('Nueva dirección:', cliente.direccion || '');
+  const cambiarTipo = confirm(`¿Cambiar tipo de cliente?\nActual: ${cliente.tipo === 'mayorista' ? 'Mayorista' : 'Normal'}\nAceptar para cambiar, Cancelar para mantener.`);
+  
+  cliente.nombre = nuevoNombre.trim();
+  cliente.telefono = nuevoTelefono.trim();
+  if(nuevaDireccion !== null) cliente.direccion = nuevaDireccion.trim();
+  
+  if(cambiarTipo){
+    const tipoAnterior = cliente.tipo;
+    cliente.tipo = cliente.tipo === 'mayorista' ? 'normal' : 'mayorista';
+    
+    if(cliente.tipo === 'mayorista'){
+      if(!cliente.preciosEspeciales) cliente.preciosEspeciales = {};
+      if(!cliente.inventarioEntregado) cliente.inventarioEntregado = {};
+      if(!cliente.historialVentas) cliente.historialVentas = [];
+      addNotif(`Cliente "${cliente.nombre}" actualizado de ${tipoAnterior} a Mayorista`, 'inversion');
+    } else {
+      addNotif(`Cliente "${cliente.nombre}" actualizado de Mayorista a Cliente normal`, 'inversion');
+    }
+  }
+  
+  save();
+  renderClientes();
+  alert('Cliente actualizado correctamente');
+}
+
+function eliminarCliente(id){
+  if(!confirm('¿Eliminar este cliente? Se perderá todo su historial.')) return;
+  D.clientes = D.clientes.filter(c => c.id !== id);
+  save();
+  renderClientes();
+  addNotif(`Cliente eliminado del sistema`, 'inversion');
+}
 </script>
 </body>
 </html>
